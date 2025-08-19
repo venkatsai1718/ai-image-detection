@@ -2,7 +2,7 @@ from flask import Flask, request, render_template, jsonify
 import tensorflow as tf
 import numpy as np
 import cv2
-import os
+from PIL import Image
 
 
 model = tf.keras.models.load_model("cnn_model.h5")
@@ -13,10 +13,20 @@ app = Flask(__name__)
 
 def preprocess_image(file):
     """Read and preprocess uploaded image"""
-    img = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
-    img = cv2.resize(img, IMG_SIZE)
-    img = img / 255.0
-    return np.expand_dims(img, axis=0)   # (1,128,128,3)
+    try:
+        file.seek(0)  # reset pointer
+        file_bytes = np.frombuffer(file.read(), np.uint8)
+        img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+
+        if img is None:
+            raise ValueError("Failed to decode image")
+
+        img = cv2.resize(img, IMG_SIZE)
+        img = img / 255.0
+        return np.expand_dims(img, axis=0)   # (1,128,128,3)
+
+    except Exception as e:
+        raise ValueError(f"Image preprocessing failed: {e}")
 
 
 @app.route("/", methods=["GET", "POST"])
